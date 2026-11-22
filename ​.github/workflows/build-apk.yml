@@ -2,7 +2,8 @@ name: Build Offline Android APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -14,16 +15,28 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Create Android WebView wrapper project
+      - name: Create Android WebView wrapper project and build APK
         run: |
+          set -euo pipefail
+
+          if [ ! -f index.html ]; then
+            echo "Error: index.html not found in repository root."
+            exit 1
+          fi
+
+          export ANDROID_HOME=${ANDROID_HOME:-/usr/local/lib/android/sdk}
+          export ANDROID_SDK_ROOT=$ANDROID_HOME
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/cmdline-tools/16.0/bin:$ANDROID_HOME/platform-tools:$PATH"
+
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools" >/dev/null 2>&1 || true
+
+          rm -rf android-app
           mkdir -p android-app/app/src/main/java/com/shadowstrike/game
           mkdir -p android-app/app/src/main/res/layout
           mkdir -p android-app/app/src/main/res/values
@@ -32,6 +45,20 @@ jobs:
           cp index.html android-app/app/src/main/assets/index.html
 
           cat << 'EOF' > android-app/settings.gradle
+          pluginManagement {
+            repositories {
+              google()
+              mavenCentral()
+              gradlePluginPortal()
+            }
+          }
+          dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+              google()
+              mavenCentral()
+            }
+          }
           rootProject.name = "ShadowStrike"
           include(":app")
           EOF
@@ -100,22 +127,24 @@ jobs:
           package com.shadowstrike.game;
 
           import android.annotation.SuppressLint;
+          import android.app.Activity;
           import android.graphics.Color;
           import android.os.Bundle;
           import android.view.View;
+          import android.view.Window;
           import android.view.WindowManager;
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
-          import androidx.appcompat.app.AppCompatActivity;
 
-          public class MainActivity extends AppCompatActivity {
+          public class MainActivity extends Activity {
             private WebView webView;
 
             @SuppressLint("SetJavaScriptEnabled")
             @Override
             protected void onCreate(Bundle savedInstanceState) {
               super.onCreate(savedInstanceState);
+              requestWindowFeature(Window.FEATURE_NO_TITLE);
               getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
               setContentView(R.layout.activity_main);
 
@@ -159,7 +188,7 @@ jobs:
             <application
                 android:allowBackup="true"
                 android:label="@string/app_name"
-                android:theme="@style/Theme.AppCompat.NoActionBar">
+                android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
 
               <activity
                   android:name=".MainActivity"
@@ -176,7 +205,6 @@ jobs:
           </manifest>
           EOF
 
-          gradle --version || true
           cd android-app
           if [ ! -f gradlew ]; then
             gradle wrapper --gradle-version 8.4
