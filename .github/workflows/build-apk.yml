@@ -41,6 +41,9 @@ jobs:
           mkdir -p android-app/app/src/main/assets
 
           cp index.html android-app/app/src/main/assets/index.html
+          if [ -f lv_0_20261123181148_a6bce24c.mp4 ]; then
+            cp lv_0_20261123181148_a6bce24c.mp4 android-app/app/src/main/assets/lv_0_20261123181148_a6bce24c.mp4
+          fi
 
           cat << 'EOF' > android-app/settings.gradle
           pluginManagement {
@@ -57,7 +60,7 @@ jobs:
               mavenCentral()
             }
           }
-          rootProject.name = "ShadowStrike"
+          rootProject.name = "JitX"
           include(":app")
           EOF
 
@@ -102,7 +105,7 @@ jobs:
 
           cat << 'EOF' > android-app/app/src/main/res/values/strings.xml
           <resources>
-            <string name="app_name">Shadow Strike</string>
+            <string name="app_name">Jit X</string>
           </resources>
           EOF
 
@@ -131,6 +134,7 @@ jobs:
           import android.view.View;
           import android.view.Window;
           import android.view.WindowManager;
+          import android.webkit.WebChromeClient;
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
@@ -164,6 +168,7 @@ jobs:
               settings.setSupportZoom(false);
               settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
 
+              webView.setWebChromeClient(new WebChromeClient());
               webView.setWebViewClient(new WebViewClient());
               webView.loadUrl("file:///android_asset/index.html");
             }
@@ -182,6 +187,8 @@ jobs:
           cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+            <uses-permission android:name="android.permission.INTERNET" />
 
             <application
                 android:allowBackup="true"
@@ -213,6 +220,6 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Shadow-Strike-APK
+          name: Jit-X-APK
           path: android-app/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
